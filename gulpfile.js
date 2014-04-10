@@ -29,26 +29,29 @@ var APP_FILES = {
 var BUILD_FILES = {
     base_dir: 'build',
     assets_dir: 'build/assets',
+    assets: 'build/assets/**',
     js: ['build/src/**/*.js', 'build/templates.js'],
     js_vendor: 'build/vendor/**/*.js'
 };
 var DIST_FILES = {
-    base_dir: 'dist'
+    base_dir: 'dist',
+    assets_dir: 'dist/assets'
 };
 
 /**
  * Clean build files
  */
-gulp.task('clean', function () {
-    var cleanBuild = gulp.src( BUILD_FILES.base_dir , {read: false})
+gulp.task('clean:build', function () {
+    return gulp.src( BUILD_FILES.base_dir , {read: false})
         .pipe(clean());
-    var cleanDist = gulp.src( DIST_FILES.base_dir , {read: false})
+});
+gulp.task('clean:compile', ['build'], function () {
+    return gulp.src( DIST_FILES.base_dir , {read: false})
         .pipe(clean());
-    return es.concat(cleanBuild, cleanDist);
 });
 
 // Copy
-gulp.task('copy:build', ['clean'], function() {
+gulp.task('copy:build', ['clean:build'], function() {
 
     var copyApp = gulp.src( APP_FILES.js, { base: './src' } )
         .pipe(gulp.dest('build/src'));
@@ -64,6 +67,10 @@ gulp.task('copy:build', ['clean'], function() {
 
     return es.concat(copyApp, copyVendor, copyAssets);
 
+});
+gulp.task('copy:compile', ['clean:compile'], function() {
+    return gulp.src( BUILD_FILES.assets)
+        .pipe(gulp.dest( DIST_FILES.assets_dir ));
 });
 
 /**
@@ -106,7 +113,7 @@ gulp.task('scripts:build', ['lint', 'copy:build', 'less'], function() {
         .pipe(templateCache('templates.js', {standalone:true}))
         .pipe(gulp.dest( BUILD_FILES.base_dir ));
 });
-gulp.task('scripts:compile', function() {
+gulp.task('scripts:compile', ['copy:compile'], function() {
     var compileApp = gulp.src( BUILD_FILES.js )
          .pipe(concat("bundle.js"))
          .pipe(ngmin())
@@ -166,7 +173,7 @@ gulp.task('test', ['build'], function() {
 
 gulp.task('default', ['test'], function() {});
 gulp.task('build', ['lint', 'less', 'index:build', 'scripts:build'], function() {});
-gulp.task("dist", ['build', 'index:compile', 'scripts:compile'], function(){
+gulp.task("dist", ['index:compile'], function(){
     //clean, build, compilejs(ngmin/uglify), compileVendor(ngmin/uglify), copy(assets) index:compile
 });
 gulp.task("watch", function(){
