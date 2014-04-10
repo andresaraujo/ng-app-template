@@ -11,6 +11,7 @@ var stylish     = require('jshint-stylish');
 var inject      = require("gulp-inject");
 var es          = require("event-stream");
 var karma       = require("gulp-karma");
+var replace     = require('gulp-replace');
 
 var userConfig  = require( './build.config.js' );
 
@@ -28,19 +29,26 @@ var APP_FILES = {
 var BUILD_FILES = {
     base_dir: 'build',
     assets_dir: 'build/assets',
-    js: 'build/src/**/*.js'
+    js: ['build/src/**/*.js', 'build/templates.js'],
+    js_vendor: 'build/vendor/**/*.js'
+};
+var DIST_FILES = {
+    base_dir: 'dist'
 };
 
 /**
  * Clean build files
  */
 gulp.task('clean', function () {
-    return gulp.src( BUILD_FILES.base_dir , {read: false})
+    var cleanBuild = gulp.src( BUILD_FILES.base_dir , {read: false})
         .pipe(clean());
+    var cleanDist = gulp.src( DIST_FILES.base_dir , {read: false})
+        .pipe(clean());
+    return es.concat(cleanBuild, cleanDist);
 });
 
 // Copy
-gulp.task('copy', ['clean'], function() {
+gulp.task('copy:build', ['clean'], function() {
 
     var copyApp = gulp.src( APP_FILES.js, { base: './src' } )
         .pipe(gulp.dest('build/src'));
@@ -76,7 +84,7 @@ gulp.task('lint', function() {
         .pipe(jshint.reporter('fail'));
 });
 
-gulp.task('less', ['copy'], function () {
+gulp.task('less', ['copy:build'], function () {
     return gulp.src( APP_FILES.less )
         .pipe(less({
             strictMath: true,
@@ -88,7 +96,7 @@ gulp.task('less', ['copy'], function () {
 /**
  * Generate build files
  */
-gulp.task('scripts', ['lint', 'copy', 'less', 'index'], function() {
+gulp.task('scripts:build', ['lint', 'copy:build', 'less'], function() {
     return gulp.src( APP_FILES.atpl )
         .pipe(minifyHTML({
             empty: true,
@@ -97,25 +105,43 @@ gulp.task('scripts', ['lint', 'copy', 'less', 'index'], function() {
         }))
         .pipe(templateCache('templates.js', {standalone:true}))
         .pipe(gulp.dest( BUILD_FILES.base_dir ));
+});
+gulp.task('scripts:compile', function() {
+    var compileApp = gulp.src( BUILD_FILES.js )
+         .pipe(concat("bundle.js"))
+         .pipe(ngmin())
+         .pipe(uglify())
+         .pipe(gulp.dest( DIST_FILES.base_dir ));
 
-    /*gulp.src( APP_FILES.js )
-        .pipe(concat("main.js"))
+    var compileVendors = gulp.src(BUILD_FILES.js_vendor)
+        .pipe(concat("bundle_vendor.js"))
         .pipe(ngmin())
         .pipe(uglify())
-        .pipe(gulp.dest( BUILD_FILES.base ));*/
+        .pipe(gulp.dest(DIST_FILES.base_dir));
+
+    return es.concat(compileApp, compileVendors);
 });
 
-gulp.task('index', ['copy'], function() {
+gulp.task('index:build', ['scripts:build'], function() {
+    var appFiles = APP_FILES.js.slice();
+    appFiles.push("build/templates.js");
+
     return gulp.src('./src/index.html')
         .pipe(inject(gulp.src(userConfig.vendor_files.js, {read: false}),
             {starttag: '<!-- inject:vendor:{{ext}} -->', addRootSlash: false}))
-        .pipe(inject(gulp.src(APP_FILES.js, {read: false}), {addRootSlash: false}))
-        //.pipe(inject(gulp.src('./build/assets/*.css', { cwd: './build', read: false})))
+        .pipe(inject(gulp.src(appFiles, {read: false}), {addRootSlash: false}))
+        .pipe(inject(gulp.src('build/assets/*.css', { read: false}), {addRootSlash: false}))
+        .pipe(replace("build/", ""))
         .pipe(gulp.dest('./build'));
 });
-
-gulp.task('default', ['test'], function() {});
-gulp.task('build', ['lint', 'less', 'index', 'scripts'], function() {});
+gulp.task('index:compile', ['scripts:compile'], function() {
+    return gulp.src('./src/index.html')
+        .pipe(inject(gulp.src('dist/bundle_vendor.js', {read: false}),
+            {starttag: '<!-- inject:vendor:{{ext}} -->', addRootSlash: false}))
+        .pipe(inject(gulp.src('dist/bundle.js', {read: false}), {addRootSlash: false}))
+        .pipe(replace("dist/", ""))
+        .pipe(gulp.dest('./dist'));
+});
 
 gulp.task('test', ['build'], function() {
     var testFiles = [
@@ -138,6 +164,11 @@ gulp.task('test', ['build'], function() {
         });
 });
 
+gulp.task('default', ['test'], function() {});
+gulp.task('build', ['lint', 'less', 'index:build', 'scripts:build'], function() {});
+gulp.task("dist", ['build', 'index:compile', 'scripts:compile'], function(){
+    //clean, build, compilejs(ngmin/uglify), compileVendor(ngmin/uglify), copy(assets) index:compile
+});
 gulp.task("watch", function(){
     gulp.watch("src/app/**/**.js",['test']);
 });
