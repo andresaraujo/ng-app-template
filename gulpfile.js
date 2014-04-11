@@ -15,8 +15,6 @@ var replace     = require('gulp-replace');
 
 var userConfig  = require( './build.config.js' );
 
-var release = gulp.env.release;
-
 var APP_FILES = {
     js: ['src/**/*.js', '!src/**/*_test.js', '!src/assets/**/*.js'],
     jsunit: ['src/**/*._test.js'],
@@ -113,6 +111,7 @@ gulp.task('scripts:build', ['lint', 'copy:build', 'less'], function() {
         .pipe(templateCache('templates.js', {standalone:true}))
         .pipe(gulp.dest( BUILD_FILES.base_dir ));
 });
+
 gulp.task('scripts:compile', ['copy:compile'], function() {
     var compileApp = gulp.src( BUILD_FILES.js )
          .pipe(concat("bundle.js"))
@@ -141,6 +140,7 @@ gulp.task('index:build', ['scripts:build'], function() {
         .pipe(replace("build/", ""))
         .pipe(gulp.dest('./build'));
 });
+
 gulp.task('index:compile', ['scripts:compile'], function() {
     return gulp.src('./src/index.html')
         .pipe(inject(gulp.src('dist/bundle_vendor.js', {read: false}),
@@ -173,9 +173,7 @@ gulp.task('test', ['build'], function() {
 
 gulp.task('default', ['test'], function() {});
 gulp.task('build', ['lint', 'less', 'index:build', 'scripts:build'], function() {});
-gulp.task("dist", ['index:compile'], function(){
-    //clean, build, compilejs(ngmin/uglify), compileVendor(ngmin/uglify), copy(assets) index:compile
-});
+gulp.task("dist", ['index:compile'], function(){});
 gulp.task("watch", function(){
     gulp.watch("src/app/**/**.js",['test']);
 });

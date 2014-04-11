@@ -6,7 +6,8 @@ module.exports = function (karma) {
         plugins: [
             'karma-coverage',
             'karma-jasmine',
-            'karma-chrome-launcher'
+            'karma-chrome-launcher',
+            'karma-phantomjs-launcher'
         ],
         preprocessors: {},
         reporters: ['dots'],
@@ -18,6 +19,6 @@ module.exports = function (karma) {
         autoWatch: true,
         singleRun: false,
 
-        browsers: ['Chrome']
+        browsers: ['PhantomJS']
     });
 };

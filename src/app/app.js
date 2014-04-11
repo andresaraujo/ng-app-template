@@ -1,6 +1,3 @@
-/**
- * Created by andres on 4/8/14.
- */
 angular.module('myApp',
     [
         'templates',

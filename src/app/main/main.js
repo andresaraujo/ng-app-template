@@ -1,5 +1,6 @@
 (function() {
     /**
+     * Main Controller
      *
      * @param $scope
      * @constructor
