@@ -1,19 +1,20 @@
-var gulp        = require('gulp');
-var uglify      = require('gulp-uglify');
-var concat      = require('gulp-concat');
-var less        = require('gulp-less');
-var ngmin       = require('gulp-ngmin');
-var minifyHTML  = require('gulp-minify-html');
-var templateCache   = require('gulp-angular-templatecache');
-var clean       = require('gulp-clean');
-var jshint      = require('gulp-jshint');
-var stylish     = require('jshint-stylish');
-var inject      = require("gulp-inject");
-var es          = require("event-stream");
-var karma       = require("gulp-karma");
-var replace     = require('gulp-replace');
+var gulp            = require('gulp'),
+    uglify          = require('gulp-uglify'),
+    concat          = require('gulp-concat'),
+    less            = require('gulp-less'),
+    ngmin           = require('gulp-ngmin'),
+    minifyHTML      = require('gulp-minify-html'),
+    templateCache   = require('gulp-angular-templatecache'),
+    clean           = require('gulp-clean'),
+    jshint          = require('gulp-jshint'),
+    inject          = require("gulp-inject"),
+    es              = require("event-stream"),
+    karma           = require("gulp-karma"),
+    replace         = require('gulp-replace'),
+    gutil           = require('gulp-util'),
+    notify          = require("gulp-notify");
 
-var userConfig  = require( './build.config.js' );
+var userConfig      = require( './build.config.js' );
 
 var APP_FILES = {
     js: ['src/**/*.js', '!src/**/*_test.js', '!src/assets/**/*.js'],
@@ -35,6 +36,8 @@ var DIST_FILES = {
     base_dir: 'dist',
     assets_dir: 'dist/assets'
 };
+
+var isWatch = false;
 
 /**
  * Clean build files
@@ -71,6 +74,20 @@ gulp.task('copy:compile', ['clean:compile'], function() {
         .pipe(gulp.dest( DIST_FILES.assets_dir ));
 });
 
+
+var extractJshintErrors = function (file) {
+    if (file.jshint.success) {
+        // Don't show something if success
+        return false;
+    }
+
+    var errors = file.jshint.results.map(function (data) {
+        if (data.error) {
+            return "(" + data.error.line + ':' + data.error.character + ') ' + data.error.reason;
+        }
+    }).join("\n");
+    return file.relative + " (" + file.jshint.results.length + " errors)\n" + errors;
+};
 /**
  * JShint files
  */
@@ -85,8 +102,8 @@ gulp.task('lint', function() {
             boss: true,
             eqnull: true
         }))
-        .pipe(jshint.reporter( stylish ))
-        .pipe(jshint.reporter('fail'));
+        .pipe(notify({title: "Jshint error", message: extractJshintErrors}))
+        .pipe(isWatch ? gutil.noop() : jshint.reporter('fail'));
 });
 
 gulp.task('less', ['copy:build'], function () {
@@ -164,9 +181,9 @@ gulp.task('test', ['build'], function() {
             action: 'run'
         }))
         .on('error', function(err) {
-            // Make sure failed tests cause gulp to exit non-zero
-            //throw err;
-            console.log(err.toString());
+            // If not watching exit with non zero
+            if(!isWatch) throw err;
+
             this.emit('end');
         });
 });
@@ -174,7 +191,8 @@ gulp.task('test', ['build'], function() {
 gulp.task('default', ['test'], function() {});
 gulp.task('build', ['lint', 'less', 'index:build', 'scripts:build'], function() {});
 gulp.task("dist", ['index:compile'], function(){});
-gulp.task("watch", function(){
+gulp.task("watch", ['test'], function(){
+    isWatch = true;
     gulp.watch("src/app/**/**.js",['test']);
 });
 
